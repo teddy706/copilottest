@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>구구단 게임</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #22c55e;
+      --accent-2: #60a5fa;
+      --danger: #ef4444;
+      --card: #1f2937;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background: radial-gradient(1200px 800px at 20% -10%, #1f2937 0%, var(--bg) 45%), var(--bg);
+      display: grid;
+      place-items: center;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      padding: 24px;
+    }
+    .app {
+      width: min(720px, 100%);
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      backdrop-filter: saturate(140%) blur(6px);
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+    .sub {
+      margin: 0 0 20px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: center;
+      background: var(--card);
+      border-radius: 12px;
+      padding: 18px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .problem {
+      font-size: clamp(28px, 4.6vw, 44px);
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+    input[type="number"] {
+      background: #0b1220;
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 18px;
+      outline: none;
+    }
+    input[type="number"]:focus {
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 3px rgba(96,165,250,0.15);
+    }
+    button {
+      height: 48px;
+      padding: 0 18px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #22c55e, #16a34a);
+      color: white;
+      font-weight: 700;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:active { transform: translateY(1px); }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .stat {
+      background: #0b1220;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .stat .k { color: var(--muted); font-size: 12px; }
+    .stat .v { font-weight: 700; font-size: 18px; }
+    .feedback {
+      margin-top: 12px;
+      min-height: 24px;
+      font-weight: 600;
+    }
+    .ok { color: var(--accent); }
+    .no { color: var(--danger); }
+    .progress {
+      margin-top: 12px;
+      height: 10px;
+      background: #0b1220;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #60a5fa, #22c55e);
+      transition: width 220ms ease;
+    }
+    .hint {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    /* Prize modal */
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(2px);
+      z-index: 50;
+    }
+    .modal.show { display: grid; }
+    .modal-card {
+      width: min(520px, 92%);
+      background: #0b1220;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    }
+    .prize {
+      font-size: 42px;
+      margin-bottom: 8px;
+    }
+    .modal button {
+      background: linear-gradient(180deg, #60a5fa, #3b82f6);
+      height: 44px;
+    }
+  </style>
+  <meta name="color-scheme" content="dark light" />
+  <meta name="description" content="2단부터 9단까지 랜덤 구구단 게임. 10연속 정답 시 상품!" />
+  <link rel="icon" href="data:," />
+  <script>
+    // Game state
+    let a = 2, b = 1;
+    let streak = 0;
+    let maxStreak = 0;
+    let correct = 0;
+    let wrong = 0;
+
+    function randInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function nextProblem() {
+      a = randInt(2, 9);
+      b = randInt(1, 9);
+      document.getElementById('problem').textContent = `${a} × ${b} = ?`;
+      const input = document.getElementById('answer');
+      input.value = '';
+      input.focus();
+    }
+
+    function updateStats() {
+      document.getElementById('streak').textContent = streak;
+      document.getElementById('maxStreak').textContent = maxStreak;
+      document.getElementById('correct').textContent = correct;
+      document.getElementById('wrong').textContent = wrong;
+      const pct = Math.min(100, Math.round((streak / 10) * 100));
+      document.getElementById('bar').style.width = pct + '%';
+      const pb = document.querySelector('.progress');
+      if (pb) pb.setAttribute('aria-valuenow', String(Math.min(10, streak)));
+    }
+
+    function setFeedback(ok, msg) {
+      const el = document.getElementById('feedback');
+      el.className = 'feedback ' + (ok ? 'ok' : 'no');
+      el.textContent = msg;
+    }
+
+    function showPrize() {
+      const modal = document.getElementById('modal');
+      modal.classList.add('show');
+      const btn = document.getElementById('closePrize');
+      btn.focus();
+    }
+
+    function closePrize() {
+      document.getElementById('modal').classList.remove('show');
+      // Reset streak after prize
+      streak = 0;
+      updateStats();
+      nextProblem();
+    }
+
+    function submitAnswer() {
+      const input = document.getElementById('answer');
+      const raw = input.value.trim();
+      if (raw === '') return; // 입력이 비어있으면 무시
+      const v = Number(raw);
+      if (!Number.isFinite(v)) return;
+
+      const isCorrect = v === a * b;
+      if (isCorrect) {
+        correct += 1;
+        streak += 1;
+        maxStreak = Math.max(maxStreak, streak);
+        setFeedback(true, `정답입니다! 👍 (${a}×${b}=${a*b})`);
+        if (streak >= 10) {
+          showPrize();
+        }
+      } else {
+        wrong += 1;
+        setFeedback(false, `오답입니다 😅 정답은 ${a*b} 입니다.`);
+        streak = 0;
+      }
+      updateStats();
+      if (streak < 10) {
+        nextProblem();
+      }
+    }
+
+    // Initialize on DOM ready
+    document.addEventListener('DOMContentLoaded', () => {
+      nextProblem();
+      updateStats();
+      const input = document.getElementById('answer');
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          submitAnswer();
+        }
+      });
+      document.getElementById('submit').addEventListener('click', submitAnswer);
+      document.getElementById('closePrize').addEventListener('click', closePrize);
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && document.getElementById('modal').classList.contains('show')) {
+          closePrize();
+        }
+      });
+    });
+  </script>
+  <style>
+    /* Small helper to hide arrows on number input on some UAs */
+    input[type=number]::-webkit-outer-spin-button,
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+  </style>
+  <!-- Prevent pinch zoom jumping the layout on iOS -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  </head>
+<body>
+  <main class="app" aria-live="polite">
+    <h1>구구단 게임</h1>
+    <p class="sub">2단부터 9단까지 임의로 출제됩니다. 10연속 정답 시 🎁 상품!</p>
+
+    <section class="board" aria-label="문제와 입력">
+      <div id="problem" class="problem" role="status" aria-live="polite">&nbsp;</div>
+      <div class="controls">
+        <input id="answer" type="number" inputmode="numeric" placeholder="정답 입력" aria-label="정답 입력" />
+        <button id="submit" aria-label="정답 제출">제출</button>
+      </div>
+    </section>
+
+    <div id="feedback" class="feedback" aria-live="polite"></div>
+
+    <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0">
+      <div id="bar" class="bar"></div>
+    </div>
+    <div class="hint">연속 정답 10개를 달성하세요!</div>
+
+    <section class="stats" aria-label="통계">
+      <div class="stat"><div class="k">연속 정답</div><div id="streak" class="v">0</div></div>
+      <div class="stat"><div class="k">최대 연속</div><div id="maxStreak" class="v">0</div></div>
+      <div class="stat"><div class="k">정답</div><div id="correct" class="v">0</div></div>
+      <div class="stat"><div class="k">오답</div><div id="wrong" class="v">0</div></div>
+    </section>
+  </main>
+
+  <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="prizeTitle">
+    <div class="modal-card">
+      <div class="prize" aria-hidden="true">🎉🎁</div>
+      <h2 id="prizeTitle" style="margin: 6px 0 12px;">축하합니다! 10연속 정답!</h2>
+      <p style="color: var(--muted); margin: 0 0 18px;">이벤트 상품을 획득하셨습니다. 계속 도전해보세요!</p>
+      <button id="closePrize" aria-label="닫기 및 다음 문제로">계속하기</button>
+    </div>
+  </div>
+</body>
+</html>
